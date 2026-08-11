@@ -8,11 +8,11 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:3000';
 
+// Allow all origins dynamically (ideal for Vercel deployments & preview URLs)
 app.use(cors({
-  origin: ['http://localhost:3000', FRONTEND_ORIGIN],
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  origin: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true
 }));
 

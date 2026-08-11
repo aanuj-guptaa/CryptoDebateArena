@@ -12,7 +12,7 @@ import VerdictPanel from './VerdictPanel';
 import LoadingState from './LoadingState';
 import CoinPickerModal from './CoinPickerModal';
 import InjectHotTakeModal from './InjectHotTakeModal';
-import { AlertCircle, MessageSquarePlus, Pause, Play } from 'lucide-react';
+import { AlertCircle, MessageSquarePlus, Pause, Play, RefreshCw } from 'lucide-react';
 import { sound } from '../lib/sound';
 
 interface ArenaViewProps {
@@ -35,30 +35,42 @@ export default function ArenaView({ coinId }: ArenaViewProps) {
   const [activeSpeaker, setActiveSpeaker] = useState<'bull' | 'bear' | null>(null);
 
   const initializeArena = async (hotTake?: string) => {
-    try {
-      setIsInitializing(true);
-      setInitError(null);
-      setDebateId(null);
-      setIsPaused(false);
-      if (hotTake) {
-        setCurrentHotTake(hotTake);
+    setIsInitializing(true);
+    setInitError(null);
+    setDebateId(null);
+    setIsPaused(false);
+    if (hotTake) {
+      setCurrentHotTake(hotTake);
+    }
+
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    while (attempts < maxAttempts) {
+      try {
+        attempts++;
+        const [statsData, chartData] = await Promise.all([
+          fetchCoinStats(coinId),
+          fetchCoinChart(coinId),
+        ]);
+
+        setStats(statsData);
+        setChart(chartData);
+
+        const debateData = await startDebate(coinId, hotTake);
+        setDebateId(debateData.debateId);
+        setIsInitializing(false);
+        return;
+      } catch (err) {
+        console.warn(`Arena init attempt ${attempts} failed:`, err);
+        if (attempts >= maxAttempts) {
+          setInitError('Failed to initialize the arena. If the backend is sleeping on Render (free tier), it takes ~30 seconds to wake up. Click "Try Again" below.');
+          setIsInitializing(false);
+          return;
+        }
+        // Wait 3 seconds before retrying (Render cold start)
+        await new Promise((res) => setTimeout(res, 3000));
       }
-
-      const [statsData, chartData] = await Promise.all([
-        fetchCoinStats(coinId),
-        fetchCoinChart(coinId),
-      ]);
-
-      setStats(statsData);
-      setChart(chartData);
-
-      const debateData = await startDebate(coinId, hotTake);
-      setDebateId(debateData.debateId);
-    } catch (err) {
-      setInitError('Failed to initialize the arena. The backend may be waking up — please try again in a moment.');
-      console.error(err);
-    } finally {
-      setIsInitializing(false);
     }
   };
 
@@ -95,18 +107,19 @@ export default function ArenaView({ coinId }: ArenaViewProps) {
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="glass-card p-8 flex flex-col items-center max-w-md text-center">
           <AlertCircle className="text-bear mb-4" size={48} />
-          <h2 className="text-xl font-bold mb-2">Connection Error</h2>
-          <p className="text-white/60 mb-6">{initError}</p>
+          <h2 className="text-xl font-bold mb-2">Backend Connection Alert</h2>
+          <p className="text-white/60 text-sm mb-6">{initError}</p>
           <div className="flex gap-3">
             <button 
               onClick={() => initializeArena()}
-              className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors font-medium cursor-pointer"
+              className="px-6 py-3 bg-bull/20 hover:bg-bull/30 text-bull border border-bull/40 rounded-xl transition-all font-bold cursor-pointer flex items-center gap-2"
             >
-              Try Again
+              <RefreshCw size={16} />
+              <span>Try Again</span>
             </button>
             <button 
               onClick={() => setIsPickerOpen(true)}
-              className="px-6 py-3 bg-bull/20 hover:bg-bull/30 text-bull border border-bull/30 rounded-xl transition-colors font-medium cursor-pointer"
+              className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl transition-all font-medium cursor-pointer"
             >
               Pick Another Coin
             </button>

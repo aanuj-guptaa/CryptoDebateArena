@@ -1,6 +1,7 @@
 import { CoinInfo, CoinStats, ChartPoint } from './types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const rawUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = rawUrl.replace(/\/+$/, '');
 
 export async function fetchCoins(): Promise<CoinInfo[]> {
   const res = await fetch(`${API_URL}/api/coins`);
